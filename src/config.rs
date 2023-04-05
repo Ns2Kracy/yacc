@@ -15,7 +15,7 @@ impl std::str::FromStr for Arch {
             "arm64" => Ok(Arch::Arm64),
             "arm7" => Ok(Arch::Armv7),
             _ => Err(format!(
-                "Unknown architecture, CasaOS only supports amd64, arm64 and arm7",
+                "Unknown architecture, CasaOS only supports amd64, arm64 and arm-7",
             )),
         }
     }
@@ -26,7 +26,7 @@ impl std::fmt::Display for Arch {
         match self {
             Arch::Amd64 => write!(f, "amd64"),
             Arch::Arm64 => write!(f, "arm64"),
-            Arch::Armv7 => write!(f, "arm7"),
+            Arch::Armv7 => write!(f, "arm-7"),
         }
     }
 }

@@ -1,9 +1,12 @@
 mod cli;
 mod commands;
 mod config;
-mod logger;
+mod utils;
+
+#[macro_use]
+mod macros;
 
 fn main() {
-    logger::init_tracing_subscriber();
-    let _cli = cli::parse_cli();
+    let cli = cli::parse_cli();
+    cli.subcommand.call(&cli.config);
 }
