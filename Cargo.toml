@@ -1,0 +1,28 @@
+[package]
+name = "yacc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ns2Kracy <22204969377@qq.com>"]
+description = "Yet Another CasaOS CLI implemented with Rust"
+readme = "README.md"
+keywords = ["casaos", "cli"]
+license = "Apache-2.0"
+
+[dependencies]
+anyhow = "1.0.70"
+atty = "0.2.14"
+clap = { version = "4.2.1", features = ["derive", "env"] }
+clap_complete = "4.2.0"
+colored = "2.0.0"
+reqwest = "0.11.16"
+serde = { version = "1.0.159", features = ["derive"] }
+serde_json = "1.0.95"
+serde_yaml = "0.9.19"
+tar = "0.4.38"
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.16", features = [
+    "env-filter",
+    "local-time",
+    "time",
+    "tracing",
+] }
