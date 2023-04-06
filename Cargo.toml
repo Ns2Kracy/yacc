@@ -9,7 +9,7 @@ keywords = ["casaos", "cli"]
 license = "Apache-2.0"
 repository = "https://github.com/Ns2Kracy/yacc"
 documentation = ""
-homepage = ""
+homepage = "https://casaos.io"
 
 [dependencies]
 anyhow = "1.0.70"
