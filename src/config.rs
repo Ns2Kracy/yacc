@@ -13,7 +13,7 @@ impl std::str::FromStr for Arch {
         match s {
             "amd64" => Ok(Arch::Amd64),
             "arm64" => Ok(Arch::Arm64),
-            "arm7" => Ok(Arch::Armv7),
+            "arm-7" => Ok(Arch::Armv7),
             _ => Err(format!(
                 "Unknown architecture, CasaOS only supports amd64, arm64 and arm-7",
             )),
