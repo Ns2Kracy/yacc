@@ -1,4 +1,3 @@
-use crate::cli::Command;
 use clap::Parser;
 use thiserror::Error;
 
@@ -8,10 +7,10 @@ pub struct Install {}
 #[derive(Error, Debug)]
 pub enum Error {}
 
-impl Command for Install {
+impl crate::cli::Command for Install {
     type Error = Error;
 
-    fn call(&self, config: &crate::config::Config) -> anyhow::Result<(), Self::Error> {
+    fn call(&self, _config: &crate::config::Config) -> anyhow::Result<(), Self::Error> {
         todo!()
     }
 }

@@ -31,5 +31,5 @@ impl std::fmt::Display for Arch {
     }
 }
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Parser, Default)]
 pub struct Config {}

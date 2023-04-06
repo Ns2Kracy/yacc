@@ -36,6 +36,9 @@ pub enum SubCommand {
 
     #[clap(name = "uninstall")]
     Uninstall(commands::uninstall::Uninstall),
+
+    #[clap(name = "status")]
+    Status(commands::status::Status)
 }
 
 impl SubCommand {
@@ -43,6 +46,7 @@ impl SubCommand {
         match self {
             SubCommand::Install(cmd) => cmd.handle(config),
             SubCommand::Uninstall(cmd) => cmd.handle(config),
+            SubCommand::Status(cmd) => cmd.handle(config),
         }
     }
 }

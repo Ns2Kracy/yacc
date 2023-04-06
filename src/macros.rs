@@ -36,3 +36,15 @@ macro_rules! print_warn {
         }
     };
 }
+
+#[macro_export]
+macro_rules! print_output {
+    ($($arg:tt)*) => {
+        {
+            let console = console::Term::stdout();
+            console
+                .write_line(&format!("{}", format!($($arg)*)))
+                .unwrap();
+        }
+    };
+}
