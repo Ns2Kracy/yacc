@@ -7,6 +7,9 @@ description = "Yet Another CasaOS CLI implemented with Rust"
 readme = "README.md"
 keywords = ["casaos", "cli"]
 license = "Apache-2.0"
+repository = "https://github.com/Ns2Kracy/yacc"
+documentation = ""
+homepage = ""
 
 [dependencies]
 anyhow = "1.0.70"
