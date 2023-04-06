@@ -8,7 +8,7 @@ readme = "README.md"
 keywords = ["casaos", "cli"]
 license = "Apache-2.0"
 repository = "https://github.com/Ns2Kracy/yacc"
-documentation = ""
+documentation = "https://wiki.casaos.io"
 homepage = "https://casaos.io"
 
 [dependencies]
