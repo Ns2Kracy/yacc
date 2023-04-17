@@ -1,7 +1,7 @@
 use clap::Parser;
 use thiserror::Error;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Default)]
 pub struct Install {}
 
 #[derive(Error, Debug)]

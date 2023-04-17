@@ -6,7 +6,7 @@ macro_rules! print_error {
         {
             let console = console::Term::stdout();
             console
-                .write_line(&format!("{} {}", console::style("[Error]:").red(), format!($($arg)*)))
+                .write_line(&format!("{} {}", console::style("[error]:").red(), format!($($arg)*)))
                 .unwrap();
             std::process::exit(1);
         }
@@ -19,7 +19,7 @@ macro_rules! print_info {
         {
             let console = console::Term::stdout();
             console
-                .write_line(&format!("{} {}", console::style("[Info]:").green(), format!($($arg)*)))
+                .write_line(&format!("{} {}", console::style("[info]:").green(), format!($($arg)*)))
                 .unwrap();
         }
     };
@@ -31,7 +31,7 @@ macro_rules! print_warn {
         {
             let console = console::Term::stdout();
             console
-                .write_line(&format!("{} {}", console::style("[Warning]:").yellow(), format!($($arg)*)))
+                .write_line(&format!("{} {}", console::style("[warning]:").yellow(), format!($($arg)*)))
                 .unwrap();
         }
     };

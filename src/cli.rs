@@ -2,7 +2,7 @@ use crate::{commands, config::Config, print_error};
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-#[clap(name="scom", version=env!("CARGO_PKG_VERSION"), author=env!("CARGO_PKG_AUTHORS"))]
+#[clap(name="yacc", version=env!("CARGO_PKG_VERSION"), author=env!("CARGO_PKG_AUTHORS"))]
 pub struct Cli {
     #[clap(flatten)]
     pub config: Config,
@@ -38,7 +38,22 @@ pub enum SubCommand {
     Uninstall(commands::uninstall::Uninstall),
 
     #[clap(name = "status")]
-    Status(commands::status::Status)
+    Status(commands::status::Status),
+
+    #[clap(name = "start")]
+    Start(commands::start::Start),
+
+    #[clap(name = "stop")]
+    Stop(commands::stop::Stop),
+
+    #[clap(name = "restart")]
+    Restart(commands::start::Start),
+
+    #[clap(name = "enable")]
+    Enable(commands::enable::Enable),
+
+    #[clap(name = "disable")]
+    Disable(commands::disable::Disable),
 }
 
 impl SubCommand {
@@ -47,6 +62,11 @@ impl SubCommand {
             SubCommand::Install(cmd) => cmd.handle(config),
             SubCommand::Uninstall(cmd) => cmd.handle(config),
             SubCommand::Status(cmd) => cmd.handle(config),
+            SubCommand::Start(cmd) => cmd.handle(config),
+            SubCommand::Stop(cmd) => cmd.handle(config),
+            SubCommand::Restart(cmd) => cmd.handle(config),
+            SubCommand::Enable(cmd) => cmd.handle(config),
+            SubCommand::Disable(cmd) => cmd.handle(config),
         }
     }
 }
