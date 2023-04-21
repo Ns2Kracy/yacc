@@ -1,13 +1,25 @@
-use clap::Parser;
-use thiserror::Error;
+#[derive(clap::Parser, Debug, Default)]
+pub struct Status {
+    #[clap(short, long)]
+    pub all: bool,
 
-#[derive(Parser, Debug, Default)]
-pub struct Status {}
+    #[clap(short, long)]
+    pub service: Option<String>,
+}
 
-#[derive(Debug, Error)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Failed to get service status")]
-    GetServiceStatusFailed,
+    #[error("Failed to get status of service {0}")]
+    ServiceStatusError(String),
+
+    #[error("Failed to get status of all services: {0}")]
+    StatusAllError(String),
+
+    #[error("Service not found: {0}")]
+    ServiceNotFound(String),
+
+    #[error("Permission denied")]
+    PermissionDenied,
 }
 
 impl crate::cli::Command for Status {

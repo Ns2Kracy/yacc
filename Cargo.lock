@@ -1330,6 +1330,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "console",
+ "lazy_static",
  "mime",
  "reqwest",
  "serde",

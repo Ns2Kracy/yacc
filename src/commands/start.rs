@@ -1,11 +1,26 @@
-use clap::Parser;
-use thiserror::Error;
+#[derive(clap::Parser, Debug, Default)]
+pub struct Start {
+    #[clap(short, long)]
+    pub all: bool,
 
-#[derive(Parser, Debug, Default)]
-pub struct Start {}
+    #[clap(short, long)]
+    pub service: Option<String>,
+}
 
-#[derive(Error, Debug)]
-pub enum Error {}
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Failed to start service {0}")]
+    ServiceStartError(String),
+
+    #[error("Failed to start all services: {0}")]
+    StartAllError(String),
+
+    #[error("Service not found: {0}")]
+    ServiceNotFound(String),
+
+    #[error("Permission denied")]
+    PermissionDenied,
+}
 
 impl crate::cli::Command for Start {
     type Error = Error;

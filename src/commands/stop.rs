@@ -1,11 +1,26 @@
-use clap::Parser;
-use thiserror::Error;
+#[derive(clap::Parser, Debug, Default)]
+pub struct Stop {
+    #[clap(short, long)]
+    pub all: bool,
 
-#[derive(Parser, Debug, Default)]
-pub struct Stop {}
+    #[clap(short, long)]
+    pub service: Option<String>,
+}
 
-#[derive(Error, Debug)]
-pub enum Error {}
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Failed to stop service {0}")]
+    ServiceStopError(String),
+
+    #[error("Failed to stop all services: {0}")]
+    StopAllError(String),
+
+    #[error("Service not found: {0}")]
+    ServiceNotFound(String),
+
+    #[error("Permission denied")]
+    PermissionDenied,
+}
 
 impl crate::cli::Command for Stop {
     type Error = Error;

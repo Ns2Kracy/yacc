@@ -1,11 +1,32 @@
-use clap::Parser;
-use thiserror::Error;
+#[derive(clap::Parser, Debug, Default)]
+pub struct Install {
+    #[clap(short, long)]
+    pub version: Option<String>,
 
-#[derive(Parser, Debug, Default)]
-pub struct Install {}
+    #[clap(short, long)]
+    pub latest: bool,
 
-#[derive(Error, Debug)]
-pub enum Error {}
+    #[clap(short, long)]
+    pub alpha: bool,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Failed to download the latest release, please check your internet connection")]
+    DownloadError,
+
+    #[error("Failed to extract the downloaded release")]
+    ExtractError,
+
+    #[error("Failed to install the downloaded release")]
+    InstallError,
+
+    #[error("Failed to remove the downloaded release")]
+    RemoveError,
+
+    #[error("Permission denied")]
+    PermissionDenied,
+}
 
 impl crate::cli::Command for Install {
     type Error = Error;

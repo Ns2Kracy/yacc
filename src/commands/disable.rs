@@ -1,11 +1,26 @@
-use clap::Parser;
-use thiserror::Error;
+#[derive(clap::Parser, Debug, Default)]
+pub struct Disable {
+    #[clap(short, long)]
+    pub all: bool,
 
-#[derive(Parser, Debug, Default)]
-pub struct Disable {}
+    #[clap(short, long)]
+    pub service: Option<String>,
+}
 
-#[derive(Error, Debug)]
-pub enum Error {}
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Failed to disable service {0}")]
+    ServiceDisableError(String),
+
+    #[error("Failed to disable all services: {0}")]
+    DisableAllError(String),
+
+    #[error("Service not found: {0}")]
+    ServiceNotFound(String),
+
+    #[error("Permission denied")]
+    PermissionDenied,
+}
 
 impl crate::cli::Command for Disable {
     type Error = Error;
