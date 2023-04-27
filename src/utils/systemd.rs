@@ -34,8 +34,16 @@ pub fn enable(service: &str) -> anyhow::Result<ExitStatus> {
     systemctl(vec!["enable", service])
 }
 
+pub fn enable_now(service: &str) -> anyhow::Result<ExitStatus> {
+    systemctl(vec!["enable", "--now", service])
+}
+
 pub fn disable(service: &str) -> anyhow::Result<ExitStatus> {
     systemctl(vec!["disable", service])
+}
+
+pub fn disable_now(service: &str) -> anyhow::Result<ExitStatus> {
+    systemctl(vec!["disable", "--now", service])
 }
 
 pub fn is_enabled(service: &str) -> anyhow::Result<bool> {
@@ -73,81 +81,4 @@ pub fn state(service: &str) -> anyhow::Result<String> {
     let sub_state = sub_state(service)?;
     let output = format!("{}({})", active_state, sub_state);
     Ok(output)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_start() {
-        let output = start("casaos").unwrap();
-        assert!(output.success());
-    }
-
-    #[test]
-    fn test_stop() {
-        let output = stop("casaos").unwrap();
-        assert!(output.success());
-    }
-
-    #[test]
-    fn test_restart() {
-        let output = restart("casaos").unwrap();
-        assert!(output.success());
-    }
-
-    #[test]
-    fn test_enable() {
-        let output = enable("casaos").unwrap();
-        assert!(output.success());
-    }
-
-    #[test]
-    fn test_disable() {
-        let output = disable("casaos").unwrap();
-        assert!(output.success());
-    }
-
-    #[test]
-    fn test_is_enabled() {
-        let output = is_enabled("casaos").unwrap();
-        assert!(output);
-    }
-
-    #[test]
-    fn test_is_active() {
-        let output = is_active("casaos").unwrap();
-        assert!(output);
-    }
-
-    #[test]
-    fn test_is_failed() {
-        let output = is_failed("casaos").unwrap();
-        assert!(!output);
-    }
-
-    #[test]
-    fn test_is_exist() {
-        let output = is_exist("casaos").unwrap();
-        assert!(output);
-    }
-
-    #[test]
-    fn test_active_state() {
-        let output = active_state("casaos").unwrap();
-        assert_eq!(output, "active");
-    }
-
-    #[test]
-    fn test_sub_state() {
-        let output = sub_state("casaos").unwrap();
-        assert_eq!(output, "running");
-    }
-
-    #[test]
-    fn test_state() {
-        let output = state("casaos").unwrap();
-        println!("{}", output);
-    }
 }

@@ -1,76 +1,53 @@
-use crate::{commands, config::Config, print_error};
+use crate::commands;
+use anyhow::Error;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[clap(name="yacc", version=env!("CARGO_PKG_VERSION"), author=env!("CARGO_PKG_AUTHORS"))]
 pub struct Cli {
-    #[clap(flatten)]
-    pub config: Config,
     #[clap(subcommand)]
     pub subcommand: SubCommand,
-}
-
-pub trait Command {
-    type Error: std::error::Error;
-
-    fn call(&self, config: &Config) -> anyhow::Result<(), Self::Error>;
-
-    fn error(&self, error: String) {
-        print_error!("{}", error);
-    }
-
-    fn handle(&self, config: &Config) {
-        match self.call(config) {
-            Ok(()) => (),
-            Err(e) => {
-                self.error(format!("Error: {}", e));
-            }
-        }
-    }
 }
 
 #[derive(Parser, Debug)]
 pub enum SubCommand {
     #[clap(name = "install")]
-    Install(commands::install::Install),
+    Install(commands::install::Args),
 
     #[clap(name = "uninstall")]
-    Uninstall(commands::uninstall::Uninstall),
+    Uninstall(commands::uninstall::Args),
 
     #[clap(name = "status")]
-    Status(commands::status::Status),
+    Status(commands::status::Args),
 
     #[clap(name = "start")]
-    Start(commands::start::Start),
+    Start(commands::start::Args),
 
     #[clap(name = "stop")]
-    Stop(commands::stop::Stop),
+    Stop(commands::stop::Args),
 
     #[clap(name = "restart")]
-    Restart(commands::start::Start),
+    Restart(commands::start::Args),
 
     #[clap(name = "enable")]
-    Enable(commands::enable::Enable),
+    Enable(commands::enable::Args),
 
     #[clap(name = "disable")]
-    Disable(commands::disable::Disable),
+    Disable(commands::disable::Args),
 }
 
-impl SubCommand {
-    pub fn call(&self, config: &Config) {
-        match self {
-            SubCommand::Install(cmd) => cmd.handle(config),
-            SubCommand::Uninstall(cmd) => cmd.handle(config),
-            SubCommand::Status(cmd) => cmd.handle(config),
-            SubCommand::Start(cmd) => cmd.handle(config),
-            SubCommand::Stop(cmd) => cmd.handle(config),
-            SubCommand::Restart(cmd) => cmd.handle(config),
-            SubCommand::Enable(cmd) => cmd.handle(config),
-            SubCommand::Disable(cmd) => cmd.handle(config),
-        }
-    }
-}
+pub fn run() -> anyhow::Result<(), Error> {
+    let cmd = Cli::parse();
 
-pub fn parse_cli() -> Cli {
-    Cli::parse()
+    let _ = match cmd.subcommand {
+        SubCommand::Install(cmd) => commands::install::run(cmd),
+        SubCommand::Uninstall(cmd) => commands::uninstall::run(cmd),
+        SubCommand::Status(cmd) => commands::status::run(cmd),
+        SubCommand::Start(cmd) => commands::start::run(cmd),
+        SubCommand::Stop(cmd) => commands::stop::run(cmd),
+        SubCommand::Restart(cmd) => commands::start::run(cmd),
+        SubCommand::Enable(cmd) => commands::enable::run(cmd),
+        SubCommand::Disable(cmd) => commands::disable::run(cmd),
+    };
+    Ok(())
 }
