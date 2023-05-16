@@ -1,5 +1,7 @@
 /target
 
 .vscode
-
 .idea
+
+install.sh
+uninstall.sh

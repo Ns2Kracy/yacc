@@ -1,6 +1,6 @@
 [package]
 name = "yacc"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Ns2Kracy <22204969377@qq.com>"]
 description = "Yet Another CasaOS CLI implemented with Rust"
@@ -15,6 +15,7 @@ homepage = "https://casaos.io"
 anyhow = "1.0.70"
 clap = { version = "4.2.1", features = ["derive", "env"] }
 console = "0.15.5"
+dialoguer = "0.10.4"
 lazy_static = "1.4.0"
 reqwest = "0.11.16"
 serde = { version = "1.0.159", features = ["derive"] }
