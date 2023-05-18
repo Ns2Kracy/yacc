@@ -37,7 +37,7 @@ fn uninstall_casaos() -> anyhow::Result<(), Error> {
         .unwrap()
     {
         print_info!("Start deleting all containers.");
-        uninstall_containers().unwrap();
+        uninstall_containers()?;
     }
 
     // remove images
@@ -49,47 +49,42 @@ fn uninstall_casaos() -> anyhow::Result<(), Error> {
         .unwrap()
     {
         print_info!("Start deleting all images.");
-        remove_images(true).unwrap();
+        remove_images(true)?;
     } else {
-        print_info!("Start deeleting unused images.");
-        remove_images(false).unwrap();
+        print_info!("Start deleting unused images.");
+        remove_images(false)?;
     }
 
     // stop and disable services
     stop_and_remove_service()?;
 
     // remove casaos files
-    remove_files().unwrap();
+    remove_files()?;
 
     Ok(())
 }
 
 fn detect_casaos() -> anyhow::Result<bool, Error> {
-    // detect casaos files
-    let exist = std::path::Path::new("/usr/bin/casaos").exists();
-
-    Ok(exist)
+    Ok(std::path::Path::new("/usr/bin/casaos").exists())
 }
 
 fn uninstall_containers() -> anyhow::Result<(), Error> {
     let command = std::process::Command::new("docker")
-        .arg("stop")
-        .arg("$(docker ps -aq)")
-        .output()
-        .unwrap();
+        .args(&["stop", "$(docker ps -aq)"])
+        .status()?
+        .success();
 
-    if !command.status.success() {
+    if !command {
         print_warn!("Failed to stop containers.");
     }
 
     // remove all containers
     let command = std::process::Command::new("docker")
-        .arg("rm")
-        .arg("$(docker ps -aq)")
-        .output()
-        .unwrap();
+        .args(&["rm", "$(docker ps -aq)"])
+        .status()?
+        .success();
 
-    if !command.status.success() {
+    if !command {
         print_warn!("Failed to delete all containers.");
     }
 
@@ -99,23 +94,22 @@ fn uninstall_containers() -> anyhow::Result<(), Error> {
 fn remove_images(confirm: bool) -> anyhow::Result<(), Error> {
     if !confirm {
         let command = std::process::Command::new("docker")
-            .arg("image")
-            .arg("prune")
-            .arg("-af")
-            .output()?;
+            .args(&["image", "prune", "-af"])
+            .status()?
+            .success();
 
-        if !command.status.success() {
+        if !command {
             print_warn!("Failed to remove unused images.");
         }
         return Ok(());
     }
 
     let command = std::process::Command::new("docker")
-        .arg("rmi")
-        .arg("$(docker images -aq)")
-        .output()?;
+        .args(&["rmi", "$(docker images -aq)"])
+        .status()?
+        .success();
 
-    if !command.status.success() {
+    if !command {
         print_warn!("Failed to remove all images.");
     }
 
@@ -126,12 +120,24 @@ fn stop_and_remove_service() -> anyhow::Result<(), Error> {
     let services = SERVICES;
 
     for service in services {
+        print_info!("Stopping {} ...", service);
         let command = std::process::Command::new("systemctl")
-            .args(vec!["disable --now", service])
-            .output()?;
+            .args(&["stop", service])
+            .status()?
+            .success();
 
-        if !command.status.success() {
-            print_warn!("Failed to stop and disable service: {}", service);
+        if !command {
+            print_warn!("Failed to stop service: {}", service);
+        }
+
+        print_info!("Disabling {} ...", service);
+        let command = std::process::Command::new("systemctl")
+            .args(&["disable", service])
+            .status()?
+            .success();
+
+        if !command {
+            print_warn!("Failed to disable service: {}", service);
         }
     }
 
@@ -143,7 +149,7 @@ fn remove_files() -> anyhow::Result<(), Error> {
         "/usr/lib/systemd/system/casaos.service",
         "lib/systemd/system/casaos.service",
         "/etc/systemd/system/casaos.service",
-        "/etc/casaOS",
+        "/etc/casaos",
         "/etc/udev/rules.d/11-usb-mount.rules",
         "/etc/systemd/system/usb-mount@.service",
         "/usr/local/bin/casaos",
@@ -155,27 +161,20 @@ fn remove_files() -> anyhow::Result<(), Error> {
         "/var/lib/casaos/migration",
         "/usr/share/casaos",
         "/var/log/casaos",
-        "etc/casaos",
+        "/etc/casaos",
         "/var/run/casaos",
         "/usr/bin/casaos-uninstall",
     ];
     for file in files {
-        std::process::Command::new("sudo")
-            .arg("rm")
-            .arg("-rf")
-            .arg(file)
-            .output()?;
+        std::fs::remove_dir_all(file)?;
     }
 
     let manifest = std::fs::read_to_string("/etc/casaos/manifest")?;
     for line in manifest.lines() {
-        std::process::Command::new("sudo")
-            .arg("rm")
-            .arg("-rf")
-            .arg(line)
-            .output()?;
+        std::fs::remove_dir_all(line)?;
     }
     std::fs::remove_file("/var/lib/casaos/manifest")?;
+    std::fs::remove_dir_all("/var/lib/casaos")?;
 
     if dialoguer::Confirm::new()
         .with_prompt("Do you want delete all app data?")
