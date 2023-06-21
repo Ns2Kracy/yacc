@@ -1,4 +1,5 @@
-use crate::consts::SERVICES;
+use crate::consts::CASA_SERVICES;
+use crate::utils::confirm::confirm_default_no;
 use crate::{print_error, print_info, print_output, print_warn};
 use anyhow::Error;
 
@@ -29,15 +30,18 @@ fn uninstall_casaos() -> anyhow::Result<(), Error> {
     print_output!("This script will delete the containers you no longer use, and the CasaOS configuration files.");
 
     // stop and remove all containers
-    if dialoguer::Confirm::new()
-        .with_prompt("Do you want delete all containers?")
-        .default(true)
-        .show_default(true)
-        .interact()
-        .unwrap()
-    {
-        print_info!("Start deleting all containers.");
-        uninstall_containers()?;
+
+    match confirm_default_no("Do you want delete all containers?") {
+        Ok(true) => {
+            print_info!("Start deleting all containers.");
+            uninstall_containers()?;
+        }
+        Ok(false) => {
+            print_info!("Skip delete containers.");
+        }
+        Err(e) => {
+            print_error!("Failed to confirm.\n{:?}", e);
+        }
     }
 
     // remove images
@@ -70,7 +74,7 @@ fn detect_casaos() -> anyhow::Result<bool, Error> {
 
 fn uninstall_containers() -> anyhow::Result<(), Error> {
     let command = std::process::Command::new("docker")
-        .args(&["stop", "$(docker ps -aq)"])
+        .args(["stop", "$(docker ps -aq)"])
         .status()?
         .success();
 
@@ -80,7 +84,7 @@ fn uninstall_containers() -> anyhow::Result<(), Error> {
 
     // remove all containers
     let command = std::process::Command::new("docker")
-        .args(&["rm", "$(docker ps -aq)"])
+        .args(["rm", "$(docker ps -aq)"])
         .status()?
         .success();
 
@@ -94,7 +98,7 @@ fn uninstall_containers() -> anyhow::Result<(), Error> {
 fn remove_images(confirm: bool) -> anyhow::Result<(), Error> {
     if !confirm {
         let command = std::process::Command::new("docker")
-            .args(&["image", "prune", "-af"])
+            .args(["image", "prune", "-af"])
             .status()?
             .success();
 
@@ -105,7 +109,7 @@ fn remove_images(confirm: bool) -> anyhow::Result<(), Error> {
     }
 
     let command = std::process::Command::new("docker")
-        .args(&["rmi", "$(docker images -aq)"])
+        .args(["rmi", "$(docker images -aq)"])
         .status()?
         .success();
 
@@ -117,12 +121,12 @@ fn remove_images(confirm: bool) -> anyhow::Result<(), Error> {
 }
 
 fn stop_and_remove_service() -> anyhow::Result<(), Error> {
-    let services = SERVICES;
+    let services = CASA_SERVICES;
 
     for service in services {
         print_info!("Stopping {} ...", service);
         let command = std::process::Command::new("systemctl")
-            .args(&["stop", service])
+            .args(["stop", service])
             .status()?
             .success();
 
@@ -132,7 +136,7 @@ fn stop_and_remove_service() -> anyhow::Result<(), Error> {
 
         print_info!("Disabling {} ...", service);
         let command = std::process::Command::new("systemctl")
-            .args(&["disable", service])
+            .args(["disable", service])
             .status()?
             .success();
 

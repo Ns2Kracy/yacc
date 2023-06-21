@@ -7,5 +7,8 @@ mod utils;
 mod macros;
 
 fn main() -> anyhow::Result<(), anyhow::Error> {
+    if !cfg!(target_os = "linux") {
+        print_error!("Only support Linux.");
+    }
     cli::run()
 }

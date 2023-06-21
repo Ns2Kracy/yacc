@@ -6,6 +6,6 @@ pub struct Args {
     alpha: bool,
 }
 
-pub fn run(cmd: Args) -> anyhow::Result<(), Error> {
+pub fn run(_cmd: Args) -> anyhow::Result<(), Error> {
     todo!()
 }
