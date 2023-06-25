@@ -2,6 +2,7 @@
 
 .vscode
 .idea
+/dist
 
 install.sh
 uninstall.sh

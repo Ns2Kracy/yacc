@@ -1,6 +1,7 @@
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Confirm};
 
+#[allow(dead_code)]
 pub fn confirm_default_yes(prompt: &str) -> anyhow::Result<bool> {
     let confirmation = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(prompt)

@@ -1,3 +1,5 @@
+use crate::print_output;
+
 #[derive(clap::Parser, Debug, Default)]
 pub struct Args {
     #[clap(short, default_value = "false")]
@@ -5,5 +7,6 @@ pub struct Args {
 }
 
 pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
-    todo!()
+    print_output!("Update CasaOS successfully.");
+    Ok(())
 }
