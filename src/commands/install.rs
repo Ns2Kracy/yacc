@@ -1,65 +1,81 @@
-use crate::{print_error, print_info, print_output, print_warn};
-use anyhow::Error;
+use crate::{
+    print_error, print_info, print_output, print_warn, utils::confirm::confirm_default_no,
+};
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use reqwest::Client;
-use std::{ops::Div, thread, time::Instant};
+use reqwest::{
+    header::{CONTENT_LENGTH, RANGE},
+    Client,
+};
+use std::{ops::Div, path::Path};
 use sys_info::linux_os_release;
+use tokio::{fs, io::AsyncWriteExt};
 
 /// Install CasaOS
 #[derive(clap::Parser, Debug, Default)]
 pub struct Args {}
 
-pub fn run(_cmd: Args) -> anyhow::Result<(), Error> {
+pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
     // clear screen
     console::Term::stdout().clear_screen()?;
 
-    let mut rng = rand::thread_rng();
-    let started = Instant::now();
-    let spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {wide_msg}")
-        .unwrap()
-        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ");
-    let m = MultiProgress::new();
-    let pb = m.add(ProgressBar::new_spinner());
-    pb.set_style(spinner_style);
-
+    // Step 0 : Get Download Url Domain
     let download_domain = get_download_domain()?;
     let arch = check_arch()?;
     let distro = check_distro()?;
-    let memory = check_memory()?;
-    let disk = check_disk()?;
 
-    let system_info = vec![
-        format!("Your architecture is: {}", arch),
-        format!("Your Linux distribution is: {}", distro),
-        format!("Free memory is: {}", memory),
-        format!("Free disk is: {}", disk),
-    ];
+    // Step 1: Check ARCH
+    print_output!(
+        "Your hardware architecture is: {}",
+        style(arch.clone()).bold()
+    );
 
-    // 5.update dependencies
+    // Step 2: Check OS
+    if !cfg!(target_os = "linux") {
+        print_error!("This is only for Linux.");
+    }
+    print_output!("Your System is: {}", style(distro.clone()).bold());
+
+    // Step 3: Check Distribution
+    print_output!(
+        "Your Linux Distribution is: {}",
+        style(distro.clone()).bold()
+    );
+
+    // Step 4: Check System Required: Memory, Disk
+    match check_memory() {
+        Ok(_) => print_output!("Memory capacity check passed."),
+        Err(e) => {
+            print_error!("{}", e);
+        }
+    }
+    match check_disk() {
+        Ok(_) => print_output!("Disk capacity check passed."),
+        Err(e) => {
+            print_error!("{}", e);
+        }
+    }
+
+    // Step 5: Install Depends
     print_output!("{} Updating dependencies...", style("[5/5]").bold().dim());
-    match update_denpendencies(distro.as_str()) {
-        Ok(_) => {
-            print_output!(
-                "{} Dependencies update completed.",
-                style("[5/5]").bold().dim()
-            );
-        }
+
+    // Step 6: Check And Install Docker
+
+    // Step 7: Configuration Addon
+
+    // Step 8: Download And Install CasaOS
+    print_output!("{} Downloading CasaOS...", style("[6/6]").bold().dim());
+    match download_casaos(&download_domain.clone(), &arch.clone()).await {
+        Ok(_) => {}
         Err(e) => {
-            print_error!("Dependencies update failed: {}", e);
+            print_error!("{}", e);
         }
     }
 
-    // 6.download CasaOS
-    print_output!("{} Downloading CasaOS...", style("[6/6]").bold().dim());
-    match download_casaos(download_domain.as_str(), arch.as_str()) {
-        Ok(_) => {
-            print_output!("{} CasaOS download completed.", style("[6/6]").bold().dim());
-        }
-        Err(e) => {
-            print_error!("CasaOS download failed: {}", e);
-        }
-    }
+    // Step 9: Check Service Status
+
+    // Step 10: Clear Term and Show Welcome Banner
+
     Ok(())
 }
 
@@ -73,15 +89,12 @@ fn get_download_domain() -> anyhow::Result<String> {
         .output()?;
     let region = String::from_utf8(command.stdout)?;
     if region == "CN" || region == "China" {
-        return Ok("https://casaos.oss-cn-shanghai.aliyuncs.com/".to_string());
+        return Ok("https://casaos.oss-cn-shanghai.aliyuncs.com/IceWhaleTech/".to_string());
     }
-    Ok("https://github.com/".to_string())
+    Ok("https://github.com/IceWhaleTech/".to_string())
 }
 
 /// Check architecture, only amd64, arm64 and arm-7 are supported.
-/// For example, amd64
-/// For example, arm64
-/// For example, arm-7
 fn check_arch() -> anyhow::Result<String> {
     let env_arch = std::env::consts::ARCH;
     let supported_archs = vec!["x86_64", "aarch64", "armv7h"];
@@ -100,32 +113,34 @@ fn check_arch() -> anyhow::Result<String> {
 }
 
 /// Check distro
-/// For example, Ubuntu
-/// For example, Arch
 fn check_distro() -> anyhow::Result<String> {
     Ok(linux_os_release().unwrap().id.unwrap())
 }
 
 /// Check memory
-/// For example, 2G
-/// For example, 4G
-fn check_memory() -> anyhow::Result<String> {
+fn check_memory() -> anyhow::Result<(), anyhow::Error> {
     let memory = (sys_info::mem_info().unwrap().total as f64).div(1024.0);
 
-    if memory < 1024.0 {
-        Ok(format!("{}MB", memory))
+    if memory < 400.0 {
+        Err(anyhow::anyhow!("Requires atleast 400MB physical memory."))
     } else {
-        Ok(format!("{:.2}G", memory / 1024.0))
+        Ok(())
     }
 }
 
 /// Check disk
-fn check_disk() -> anyhow::Result<String> {
+fn check_disk() -> anyhow::Result<(), anyhow::Error> {
     let disk = (sys_info::disk_info().unwrap().free as f64)
         .div(1024.0)
         .div(1024.0);
 
-    Ok(format!("{:.2}G", disk))
+    if disk < 5.0 {
+        let _ = match confirm_default_no(format!("Recommended fress disk space is greater than 5 GB, Current free disk space is {:.2}GB\nContinue installation?", disk).as_str()).unwrap() {
+            true => Ok(()),
+            false => Err(anyhow::anyhow!("Installation cancelled.")),
+        };
+    }
+    Ok(())
 }
 
 fn update_denpendencies(distro: &str) -> anyhow::Result<()> {
@@ -150,7 +165,7 @@ fn update_denpendencies(distro: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn download_casaos(download_domain: &str, arch: &str) -> anyhow::Result<()> {
+async fn download_casaos(download_domain: &str, arch: &str) -> anyhow::Result<()> {
     let client = Client::new();
     let packages = vec![
         "${CASA_DOWNLOAD_DOMAIN}IceWhaleTech/CasaOS-Gateway/releases/download/v0.4.2/linux-${TARGET_ARCH}-casaos-gateway-v0.4.2.tar.gz",
@@ -167,34 +182,52 @@ fn download_casaos(download_domain: &str, arch: &str) -> anyhow::Result<()> {
     .collect::<Vec<String>>();
 
     let sizes = {
-        let mut sizes = vec![];
-
-        for package in packages.iter() {
-            let command = std::process::Command::new("curl")
-                .arg("-s")
-                .arg("-I")
-                .arg(package)
-                .output()?;
-            let stdout = String::from_utf8(command.stdout)?;
-            let size = stdout
-                .split("\r\n")
-                .filter(|x| x.starts_with("Content-Length"))
-                .map(|x| x.split(':').collect::<Vec<&str>>()[1].trim())
-                .collect::<Vec<&str>>()[0]
-                .parse::<u64>()?;
-            sizes.push(size);
+        let mut sizes: Vec<String> = vec![];
+        for p in packages.iter() {
+            let response = client.head(p).send().await?;
+            if response.status().is_success() {
+                let size = response
+                    .headers()
+                    .get(CONTENT_LENGTH)
+                    .and_then(|ct_len| ct_len.to_str().ok())
+                    .and_then(|ct_len| ct_len.parse().ok())
+                    .unwrap_or(0);
+                sizes.push(size.to_string());
+            }
         }
         sizes
     };
 
-    let m = MultiProgress::new();
-    let sty = ProgressStyle::with_template(
+    let style = ProgressStyle::with_template(
         "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
     )
     .unwrap()
     .progress_chars("##-");
-    let pb = m.add(ProgressBar::new(256));
-    pb.set_style(sty);
+
+    for size in sizes {
+        let pb = ProgressBar::new(size.parse::<u64>().unwrap());
+        pb.set_style(style.clone());
+
+        for p in packages.iter() {
+            let mut request = client.get(p);
+            let file = Path::new("./dist").join(p.rsplit('/').next().unwrap());
+            if file.exists() {
+                let size = file.metadata().unwrap().len().saturating_sub(1);
+                request = request.header(RANGE, format!("bytes={}-", size));
+                pb.inc(size);
+            }
+            let mut source = request.send().await?;
+            let mut dest = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&file)
+                .await?;
+            while let Some(chunk) = source.chunk().await? {
+                dest.write_all(&chunk).await?;
+                pb.inc(chunk.len() as u64);
+            }
+        }
+    }
 
     Ok(())
 }

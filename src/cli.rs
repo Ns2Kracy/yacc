@@ -1,5 +1,4 @@
 use crate::commands;
-use anyhow::Error;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -21,13 +20,13 @@ pub enum SubCommand {
     Update(commands::update::Args),
 }
 
-pub fn run() -> anyhow::Result<(), Error> {
+pub async fn run() -> anyhow::Result<(), anyhow::Error> {
     let cmd = Cli::parse();
 
     let _ = match cmd.subcommand {
-        SubCommand::Install(cmd) => commands::install::run(cmd),
-        SubCommand::Uninstall(cmd) => commands::uninstall::run(cmd),
-        SubCommand::Update(cmd) => commands::update::run(cmd),
+        SubCommand::Install(cmd) => commands::install::run(cmd).await,
+        SubCommand::Uninstall(cmd) => commands::uninstall::run(cmd).await,
+        SubCommand::Update(cmd) => commands::update::run(cmd).await,
     };
     Ok(())
 }

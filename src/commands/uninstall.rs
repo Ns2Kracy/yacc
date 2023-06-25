@@ -1,13 +1,12 @@
 use crate::consts::CASA_SERVICES;
 use crate::utils::confirm::confirm_default_no;
 use crate::{print_error, print_info, print_output, print_warn};
-use anyhow::Error;
 
 /// Uninstall CasaOS
 #[derive(clap::Parser, Debug, Default)]
 pub struct Args;
 
-pub fn run(_cmd: Args) -> anyhow::Result<(), Error> {
+pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
     let uninstall = uninstall_casaos();
     match uninstall {
         Ok(_) => {
@@ -20,7 +19,7 @@ pub fn run(_cmd: Args) -> anyhow::Result<(), Error> {
     Ok(())
 }
 
-fn uninstall_casaos() -> anyhow::Result<(), Error> {
+fn uninstall_casaos() -> anyhow::Result<(), anyhow::Error> {
     // detect casaos files
     let exist = detect_casaos()?;
     if !exist {
@@ -68,11 +67,11 @@ fn uninstall_casaos() -> anyhow::Result<(), Error> {
     Ok(())
 }
 
-fn detect_casaos() -> anyhow::Result<bool, Error> {
+fn detect_casaos() -> anyhow::Result<bool, anyhow::Error> {
     Ok(std::path::Path::new("/usr/bin/casaos").exists())
 }
 
-fn uninstall_containers() -> anyhow::Result<(), Error> {
+fn uninstall_containers() -> anyhow::Result<(), anyhow::Error> {
     let command = std::process::Command::new("docker")
         .args(["stop", "$(docker ps -aq)"])
         .status()?
@@ -95,7 +94,7 @@ fn uninstall_containers() -> anyhow::Result<(), Error> {
     Ok(())
 }
 
-fn remove_images(confirm: bool) -> anyhow::Result<(), Error> {
+fn remove_images(confirm: bool) -> anyhow::Result<(), anyhow::Error> {
     if !confirm {
         let command = std::process::Command::new("docker")
             .args(["image", "prune", "-af"])
@@ -120,7 +119,7 @@ fn remove_images(confirm: bool) -> anyhow::Result<(), Error> {
     Ok(())
 }
 
-fn stop_and_remove_service() -> anyhow::Result<(), Error> {
+fn stop_and_remove_service() -> anyhow::Result<(), anyhow::Error> {
     let services = CASA_SERVICES;
 
     for service in services {
@@ -148,7 +147,7 @@ fn stop_and_remove_service() -> anyhow::Result<(), Error> {
     Ok(())
 }
 
-fn remove_files() -> anyhow::Result<(), Error> {
+fn remove_files() -> anyhow::Result<(), anyhow::Error> {
     let files = vec![
         "/usr/lib/systemd/system/casaos.service",
         "lib/systemd/system/casaos.service",
