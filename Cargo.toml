@@ -16,9 +16,12 @@ anyhow = "1.0.70"
 clap = { version = "4.2.1", features = ["derive", "env"] }
 console = "0.15.5"
 dialoguer = "0.10.4"
+flate2 = "1.0.26"
+futures = "0.3.28"
 indicatif = { version = "0.17.4", features = ["improved_unicode"] }
 rand = "0.8.5"
 reqwest = "0.11.16"
 serde = { version = "1.0.159", features = ["derive"] }
 sys-info = "0.9.1"
+tar = "0.4.38"
 tokio = { version = "1.28.2", features = ["full"] }

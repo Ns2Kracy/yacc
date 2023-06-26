@@ -1,13 +1,20 @@
-use crate::{print_error, print_output, utils::confirm::confirm_default_no};
+use crate::{
+    consts::CASA_SERVICES,
+    print_error, print_info, print_ok, print_output,
+    utils::{
+        confirm::confirm_default_no,
+        systemd::{self},
+    },
+};
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressState, ProgressStyle};
 use reqwest::{
     header::{CONTENT_LENGTH, RANGE},
     Client,
 };
-use std::{fmt::Write, ops::Div, path::Path, thread};
+use std::{fmt::Write, ops::Div, path::Path};
 use sys_info::linux_os_release;
-use tokio::{fs, io::AsyncWriteExt};
+use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
 /// Install CasaOS
 #[derive(clap::Parser, Debug, Default)]
@@ -16,17 +23,27 @@ pub struct Args {}
 pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
     // clear screen
     console::Term::stdout().clear_screen()?;
-    print_output!("Welcome to CasaOS installer.");
+    print_output!(
+        r#"
+   _____                 ____   _____
+  / ____|               / __ \ / ____|
+ | |     __ _ ___  __ _| |  | | (___
+ | |    / _` / __|/ _` | |  | |\___ \
+ | |___| (_| \__ \ (_| | |__| |____) |
+  \_____\__,_|___/\__,_|\____/|_____/
+
+   --- Made by IceWhale with YOU ---
+    "#
+    );
 
     // Step 0 : Get Download Url Domain
-    // let download_domain = get_download_domain().unwrap();
+    let download_domain = get_download_domain().unwrap();
     let arch = check_arch().unwrap();
     let distro = check_distro().unwrap();
 
     // Step 1: Check ARCH
-    print_output!(
-        "{} Your hardware architecture is: {}",
-        style("[1/10]").bold().dim(),
+    print_info!(
+        "Your hardware architecture is: {}",
         style(arch.clone()).bold()
     );
 
@@ -34,58 +51,41 @@ pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
     if !cfg!(target_os = "linux") {
         print_error!("This is only for Linux.");
     }
-    print_output!(
-        "{} Your System is: {}",
-        style("[2/10]").bold().dim(),
-        style(distro.clone()).bold()
-    );
+    print_info!("Your System is: {}", style(distro.clone()).bold());
 
     // Step 3: Check Distribution
-    print_output!(
-        "{} Your Linux Distribution is: {}",
-        style("[3/10]").bold().dim(),
-        style(distro).bold()
-    );
+    print_info!("Your Linux Distribution is: {}", style(distro).bold());
 
     // Step 4: Check Memory, Disk
     match check_memory() {
-        Ok(_) => print_output!(
-            "{} Memory capacity check passed.",
-            style("[4/10]").bold().dim()
-        ),
+        Ok(_) => print_info!("Memory capacity check passed.",),
         Err(e) => {
             print_error!("{}", e);
         }
     }
     // Step 5: Check Disk
     match check_disk() {
-        Ok(_) => print_output!(
-            "{} Disk capacity check passed.",
-            style("[5/10]").bold().dim()
-        ),
+        Ok(_) => print_info!("Disk capacity check passed.",),
         Err(e) => {
             print_error!("{}", e);
         }
     }
 
     // Step 6: Install Depends
-    print_output!("{} Updating dependencies...", style("[6/10]").bold().dim());
+    print_info!("Updating dependencies...");
     update_denpendencies().unwrap();
 
     // Step 7: Check And Install Docker
-    print_output!("{} Checking Docker...", style("[7/10]").bold().dim());
+    print_info!("Checking Docker...");
     check_docker().unwrap();
 
     // Step 8: Configuration Addon
-    print_output!(
-        "{} Configuring CasaOS addon...",
-        style("[8/10]").bold().dim()
-    );
+    print_info!("Configuring CasaOS addon...",);
     configuraion_addon().unwrap();
 
     // Step 9: Download And Install CasaOS
-    print_output!("{} Downloading CasaOS...", style("[9/10]").bold().dim());
-    match download_casaos("https://github.com/IceWhaleTech/".to_string(), arch.clone()).await {
+    print_info!("Downloading CasaOS...");
+    match download_and_install_casaos(download_domain, arch).await {
         Ok(_) => {}
         Err(e) => {
             print_error!("{}", e);
@@ -93,14 +93,9 @@ pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
     }
 
     // Step 10: Check Service Status
-    print_output!(
-        "{} Checking CasaOS service status...",
-        style("[10/10]").bold().dim()
-    );
     check_service_status().unwrap();
 
     // Step 11: Clear Term and Show Welcome Banner
-
     welcome_banner().unwrap();
 
     Ok(())
@@ -112,7 +107,8 @@ pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
 fn get_download_domain() -> anyhow::Result<String, anyhow::Error> {
     let command = std::process::Command::new("curl")
         .arg("-s")
-        .arg("ipconfig.io/country")
+        .args(["--connect-timeout", "2"])
+        .arg("https://ifconfig.io/country_code")
         .output()?;
     let region = String::from_utf8(command.stdout)?;
     if region == "CN" || region == "China" {
@@ -169,7 +165,6 @@ fn check_disk() -> anyhow::Result<(), anyhow::Error> {
     }
     Ok(())
 }
-
 fn update_denpendencies() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
@@ -182,11 +177,12 @@ fn configuraion_addon() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
-async fn download_casaos(
+async fn download_and_install_casaos(
     download_domain: String,
     arch: String,
 ) -> anyhow::Result<(), anyhow::Error> {
     let client = Client::new();
+
     let packages = vec![
         "${CASA_DOWNLOAD_DOMAIN}CasaOS-Gateway/releases/download/v0.4.2/linux-${TARGET_ARCH}-casaos-gateway-v0.4.2.tar.gz",
         "${CASA_DOWNLOAD_DOMAIN}CasaOS-MessageBus/releases/download/v0.4.2/linux-${TARGET_ARCH}-casaos-message-bus-v0.4.2.tar.gz",
@@ -219,10 +215,12 @@ async fn download_casaos(
     };
 
     let style = ProgressStyle::with_template(
-        "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+        "{prefix:.bold} {spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
     )
     .unwrap()
-    .with_key("eta", |state: &ProgressState, w: &mut dyn Write| write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap())
+    .with_key("eta", |state: &ProgressState, w: &mut dyn Write| {
+        write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+    })
     .progress_chars("#>-");
 
     let m = MultiProgress::new();
@@ -234,7 +232,7 @@ async fn download_casaos(
             let name = package.rsplit('/').next().unwrap().to_string();
             let pb = m.add(ProgressBar::new(size.parse::<u64>().unwrap()));
             pb.set_style(style.clone());
-            pb.set_prefix(format!("[{}/{}]:", i + 1, packages.len(),));
+            pb.set_prefix(format!("Downloading {}\n", name));
             let mut request = client.get(package);
 
             tokio::spawn(async move {
@@ -245,17 +243,18 @@ async fn download_casaos(
                     pb.inc(size);
                 }
                 let mut source = request.send().await.unwrap();
-                let mut dest = fs::OpenOptions::new()
+                let mut dest = OpenOptions::new()
                     .create(true)
                     .append(true)
                     .open(&file)
                     .await
                     .unwrap();
+                pb.set_message(format!("{} Downloading", name));
                 while let Some(chunk) = source.chunk().await.unwrap() {
                     dest.write_all(&chunk).await.unwrap();
-                    pb.set_message(format!("{} Downloading", name.clone()));
                     pb.inc(chunk.len() as u64);
                 }
+                pb.finish_with_message(format!("{} downloaded", name));
             })
         })
         .collect();
@@ -264,12 +263,34 @@ async fn download_casaos(
         let _ = handle.await;
     }
 
-    m.clear().unwrap();
+    // extrat each tar.gz
+    // for p in packages.iter() {
+    //     let name = p.rsplit('/').next().unwrap().to_string();
+    //     let file = Path::new("./dist").join(name.clone());
+    //     let tar_gz = File::open(file).unwrap();
+    //     let tar = GzDecoder::new(tar_gz);
+    //     let mut archive = Archive::new(tar);
+    //     archive.unpack("./dist").unwrap();
+    // }
 
     Ok(())
 }
 
 fn check_service_status() -> anyhow::Result<(), anyhow::Error> {
+    let services = CASA_SERVICES.clone();
+
+    for service in services {
+        print_info!("Checking {}...", style(format!("{}", service)).bold());
+        if let Ok(true) = systemd::exists(service) {
+            if let Ok(true) = systemd::is_active(service) {
+                print_ok!("{}", style(format!("{} is running", service)));
+            } else {
+                print_error!("{} is not running, Please reinstall", service);
+            }
+        } else {
+            print_error!("{} could not be found, Please reinstall", service);
+        }
+    }
     Ok(())
 }
 
