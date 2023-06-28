@@ -61,3 +61,13 @@ pub fn exists(unit: &str) -> std::io::Result<bool> {
     let status = status(unit);
     Ok(status.is_ok())
 }
+
+pub fn enable(unit: &str) -> std::io::Result<bool> {
+    let enable = systemctl(vec!["enable", "--now", unit]);
+    Ok(enable.is_ok())
+}
+
+pub fn disable(unit: &str) -> std::io::Result<bool> {
+    let disable = systemctl(vec!["disable", "--now", unit]);
+    Ok(disable.is_ok())
+}

@@ -1,6 +1,6 @@
 [package]
 name = "yacc"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Ns2Kracy <22204969377@qq.com>"]
 description = "Yet Another CasaOS CLI implemented with Rust"
@@ -11,17 +11,28 @@ repository = "https://github.com/Ns2Kracy/yacc"
 documentation = "https://wiki.casaos.io"
 homepage = "https://casaos.io"
 
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+
 [dependencies]
 anyhow = "1.0.70"
 clap = { version = "4.2.1", features = ["derive", "env"] }
 console = "0.15.5"
 dialoguer = "0.10.4"
 flate2 = "1.0.26"
+fs_extra = "1.3.0"
 futures = "0.3.28"
 indicatif = { version = "0.17.4", features = ["improved_unicode"] }
+lazy_static = "1.4.0"
 rand = "0.8.5"
-reqwest = "0.11.16"
+reqwest = { version = "0.11.16", features = ["serde_json", "blocking", "json"] }
 serde = { version = "1.0.159", features = ["derive"] }
+serde_json = "1.0.99"
 sys-info = "0.9.1"
 tar = "0.4.38"
+tempfile = "3.6.0"
 tokio = { version = "1.28.2", features = ["full"] }
+walkdir = "2.3.3"

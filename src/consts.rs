@@ -14,6 +14,7 @@ pub const DEPENDENCIES: &[&str] = &[
     "apparmor",
 ];
 
+#[allow(dead_code)]
 pub const CASA_SERVICES: &[&str] = &[
     "casaos-gateway.service",
     "casaos-message-bus.service",
@@ -38,15 +39,16 @@ pub const CASAOS: &[&str] = &[
     "casaos-cli",
 ];
 
-#[allow(dead_code)]
-pub static CASA_PACKAGES: &[&str] = &[
-    "CasaOS-Gateway",
-    "CasaOS-MessageBus",
-    "CasaOS-UserService",
-    "CasaOS-LocalStorage",
-    "CasaOS-AppManagement",
-    "CasaOS",
-    "CasaOS-CLI",
-    "CasaOS-UI",
-    "CasaOS-AppStore",
-];
+lazy_static::lazy_static! {
+    pub static ref CASA_PACKAGES: Vec<&'static str> = vec![
+        "CasaOS-Gateway",
+        "CasaOS-MessageBus",
+        "CasaOS-UserService",
+        "CasaOS-LocalStorage",
+        "CasaOS-AppManagement",
+        "CasaOS",
+        "CasaOS-CLI",
+        "CasaOS-UI",
+        "CasaOS-AppStore",
+    ];
+}
