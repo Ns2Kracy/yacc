@@ -71,3 +71,14 @@ pub fn disable(unit: &str) -> std::io::Result<bool> {
     let disable = systemctl(vec!["disable", "--now", unit]);
     Ok(disable.is_ok())
 }
+
+#[test]
+fn test_check_exists() {
+    assert!(exists("casaos-gateway.service").unwrap());
+    assert!(exists("casaos-message-bus.service").unwrap());
+    assert!(exists("casaos-user-service.service").unwrap());
+    assert!(exists("casaos-local-storage.service").unwrap());
+    assert!(exists("casaos-app-management.service").unwrap());
+    assert!(exists("rclone.service").unwrap());
+    assert!(exists("casaos.service").unwrap());
+}

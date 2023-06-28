@@ -9,6 +9,7 @@ use crate::{
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use ini::Ini;
 use reqwest::{
     header::{CONTENT_LENGTH, RANGE},
     Client,
@@ -103,7 +104,6 @@ pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
     // Step 10: Check Service Status
     check_service_status().unwrap();
 
-    // TODO: welcome banner
     // Step 11: Clear Term and Show Welcome Banner
     welcome_banner().unwrap();
 
@@ -121,11 +121,14 @@ fn get_download_domain() -> anyhow::Result<String, anyhow::Error> {
 
     if let Some(country_code) = response["country_code"].as_str() {
         if country_code == "CN" {
-            return Ok("https://casaos.oss-cn-shanghai.aliyuncs.com/IceWhaleTech/".to_string());
+            Ok("https://casaos.oss-cn-shanghai.aliyuncs.com/IceWhaleTech/".to_string())
+        } else {
+            Ok("https://github.com/IceWhaleTech/".to_string())
         }
+    } else {
+        print_warn!("Failed to get country code, use Github as default.");
+        Ok("https://github.com/IceWhaleTech/".to_string())
     }
-
-    Ok("https://github.com/IceWhaleTech/".to_string())
 }
 
 /// Check architecture, only amd64, arm64 and arm-7 are supported.
@@ -292,18 +295,18 @@ async fn download_and_install_casaos(
     }
 
     // stop services
-    // for service in services {
-    //     print_info!("Stopping {}...", style(format!("{}", service)).bold());
-    //     if let Ok(true) = systemd::exists(service) {
-    //         if let Ok(true) = systemd::disable(service) {
-    //             print_ok!("{} Stopped", service);
-    //         } else {
-    //             print_warn!("Failed to stop {}", service);
-    //         }
-    //     } else {
-    //         print_warn!("Service {} does not exist.", service);
-    //     }
-    // }
+    for service in services {
+        print_info!("Stopping {}...", style(format!("{}", service)).bold());
+        if let Ok(true) = systemd::exists(service) {
+            if let Ok(true) = systemd::disable(service) {
+                print_ok!("{} Stopped", service);
+            } else {
+                print_warn!("Failed to stop {}", service);
+            }
+        } else {
+            print_warn!("Service {} does not exist.", service);
+        }
+    }
 
     // check if migration script directory exists
     let migration_script_dir = build_dir.join("scripts/migration/script.d");
@@ -398,14 +401,10 @@ async fn download_and_install_casaos(
     // Start and enable casaos services
     for service in services {
         print_info!("Starting {}...", style(format!("{}", service)).bold());
-        if let Ok(true) = systemd::exists(service) {
-            if let Ok(true) = systemd::enable(service) {
-                print_ok!("{}", style(format!("{} is enabled", service)));
-            } else {
-                print_error!("{} is not running, Please reinstall", service);
-            }
+        if let Ok(true) = systemd::enable(service) {
+            print_ok!("{}", style(format!("{} is enabled", service)));
         } else {
-            print_error!("{} could not be found, Please reinstall", service);
+            print_error!("{} is not running, Please reinstall", service);
         }
     }
     drop(tmp_dir);
@@ -431,6 +430,52 @@ fn check_service_status() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
+fn get_ip() {
+    // 读取config
+    let config = Ini::load_from_file("/etc/casaos/gateway.ini").unwrap();
+    let gateway_section = config.section(Some("gateway")).unwrap();
+    let port = gateway_section.get("port").unwrap();
+    // 获取port字段
+
+    let output = Command::new("ls")
+        .arg("/sys/class/net/")
+        .arg("|")
+        .arg(r#"grep -v "$(ls /sys/devices/virtual/net/)"#)
+        .output()
+        .expect("Failed to execute command");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let all_nic: Vec<&str> = stdout.split_whitespace().collect();
+
+    for nic in all_nic {
+        let output = Command::new("ifconfig")
+            .arg(nic)
+            .output()
+            .expect("Failed to execute command");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let ip = stdout
+            .lines()
+            .filter(|line| {
+                line.contains("inet") && !line.contains("127.0.0.1") && !line.contains("inet6")
+            })
+            .flat_map(|line| line.split_whitespace().nth(1))
+            .map(|ip| ip.trim_start_matches("addr:"))
+            .next();
+
+        if let Some(ip) = ip {
+            if port == "80" {
+                print_output!("{}", style(format!("- http://{} ({})", ip, nic)).bold());
+            } else {
+                print_output!(
+                    "{}",
+                    style(format!("- http://{}:{} ({})", ip, port, nic)).bold()
+                );
+            }
+        }
+    }
+}
+
 fn welcome_banner() -> anyhow::Result<(), anyhow::Error> {
     print_output!(
         "{}",
@@ -438,6 +483,23 @@ fn welcome_banner() -> anyhow::Result<(), anyhow::Error> {
             .green()
             .bold()
     );
+    // Get casaos version
+    let child = Command::new("casaos")
+        .arg("-v")
+        .output()
+        .expect("failed to execute process");
+    let version = String::from_utf8_lossy(&child.stdout);
+    print_output!(
+        "{}",
+        style(format!("CasaOS {} is running at:", version)).bold()
+    );
+    print_output!(
+        "{}",
+        style("─────────────────────────────────────────────────────")
+            .green()
+            .bold()
+    );
+    get_ip();
     print_output!(
         "{}",
         style("─────────────────────────────────────────────────────")
@@ -468,9 +530,52 @@ fn welcome_banner() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
-#[test]
-fn test_get_download_domain() {
-    let domain = get_download_domain();
+#[cfg(test)]
+mod test {
+    use crate::{
+        commands::install::get_download_domain, consts::CASA_SERVICES, print_error, print_info,
+        print_ok, utils::systemd,
+    };
+    use console::style;
+    #[test]
+    fn test_get_download_domain() {
+        let domain = get_download_domain();
 
-    print!("{}", domain.unwrap());
+        print!("{}", domain.unwrap());
+    }
+
+    #[test]
+    fn test_welcome_banner() {
+        let _ = super::welcome_banner();
+    }
+
+    #[test]
+    fn test_enable_services() {
+        let services = CASA_SERVICES.clone();
+        for service in services {
+            print_info!("Starting {}...", style(format!("{}", service)).bold());
+            if let Ok(true) = systemd::enable(service) {
+                print_ok!("{}", style(format!("{} is enabled", service)));
+            } else {
+                print_error!("{} is not running, Please reinstall", service);
+            }
+        }
+    }
+
+    #[test]
+    fn test_disable_services() {
+        let services = CASA_SERVICES.clone();
+        for service in services {
+            print_info!("Stopping {}...", style(format!("{}", service)).bold());
+            if let Ok(true) = systemd::exists(service) {
+                if let Ok(true) = systemd::disable(service) {
+                    print_ok!("{}", style(format!("{} is disabled", service)));
+                } else {
+                    print_error!("{} is not running, Please reinstall", service);
+                }
+            } else {
+                print_error!("{} could not be found, Please reinstall", service);
+            }
+        }
+    }
 }
