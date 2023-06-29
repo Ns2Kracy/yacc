@@ -22,6 +22,7 @@ pub const CASA_SERVICES: &[&str] = &[
     "casaos-local-storage.service",
     "casaos-app-management.service",
     "rclone.service",
+    "docker.service",
     // casaos.service must be the last one so update from UI can work
     "casaos.service",
 ];

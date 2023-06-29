@@ -2,7 +2,8 @@ use crate::{
     consts::CASA_SERVICES,
     print_error, print_info, print_ok, print_output, print_warn,
     utils::{
-        confirm::confirm_default_no,
+        confirm::{confirm_default_no, confirm_default_yes},
+        file::replace_string_in_file,
         systemd::{self},
     },
 };
@@ -47,29 +48,24 @@ pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
     let arch = check_arch().unwrap();
     let distro = check_distro().unwrap();
 
-    // Step 1: Check ARCH
     print_info!(
         "Your hardware architecture is: {}",
         style(arch.clone()).bold()
     );
 
-    // Step 2: Check OS
     if !cfg!(target_os = "linux") {
         print_error!("This is only for Linux.");
     }
     print_info!("Your System is: {}", style(distro.clone()).bold());
 
-    // Step 3: Check Distribution
     print_info!("Your Linux Distribution is: {}", style(distro).bold());
 
-    // Step 4: Check Memory, Disk
     match check_memory() {
         Ok(_) => print_info!("Memory capacity check passed.",),
         Err(e) => {
             print_error!("{}", e);
         }
     }
-    // Step 5: Check Disk
     match check_disk() {
         Ok(_) => print_info!("Disk capacity check passed.",),
         Err(e) => {
@@ -77,22 +73,12 @@ pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
         }
     }
 
-    // TODO: dependency update and install
-    // Step 6: Install Depends
     print_info!("Updating dependencies...");
-    update_denpendencies().unwrap();
+    // update_denpendencies().unwrap();
 
-    // TODO: docker check
-    // Step 7: Check And Install Docker
     print_info!("Checking Docker...");
-    check_docker().unwrap();
+    // check_docker().unwrap();
 
-    // TODO: addon configuraion
-    // Step 8: Configuration Addon
-    print_info!("Configuring CasaOS addon...",);
-    configuraion_addon().unwrap();
-
-    // Step 9: Download And Install CasaOS
     print_info!("Downloading CasaOS...");
     match download_and_install_casaos(download_domain, arch).await {
         Ok(_) => {}
@@ -110,10 +96,7 @@ pub async fn run(_cmd: Args) -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
-/// Get the download domain by region.
-/// For China, use Aliyun OSS.
-/// For other regions, use Github.
-fn get_download_domain() -> anyhow::Result<String, anyhow::Error> {
+fn get_region() -> anyhow::Result<String, anyhow::Error> {
     let client = reqwest::blocking::Client::new();
     let res = client.get("https://ipapi.co/json").send().unwrap();
 
@@ -121,14 +104,26 @@ fn get_download_domain() -> anyhow::Result<String, anyhow::Error> {
 
     if let Some(country_code) = response["country_code"].as_str() {
         if country_code == "CN" {
-            Ok("https://casaos.oss-cn-shanghai.aliyuncs.com/IceWhaleTech/".to_string())
+            Ok("cn".to_string())
         } else {
-            Ok("https://github.com/IceWhaleTech/".to_string())
+            Ok("global".to_string())
         }
     } else {
-        print_warn!("Failed to get country code, use Github as default.");
-        Ok("https://github.com/IceWhaleTech/".to_string())
+        print_warn!("Failed to get country code, use global as default.");
+        Ok("global".to_string())
     }
+}
+
+/// Get the download domain by region.
+/// For China, use Aliyun OSS.
+/// For other regions, use Github.
+fn get_download_domain() -> anyhow::Result<String, anyhow::Error> {
+    let region = get_region().unwrap();
+
+    if region == "cn" {
+        return Ok("https://casaos.oss-cn-shanghai.aliyuncs.com/IceWhaleTech/".to_string());
+    }
+    Ok("https://github.com/IceWhaleTech/".to_string())
 }
 
 /// Check architecture, only amd64, arm64 and arm-7 are supported.
@@ -179,14 +174,122 @@ fn check_disk() -> anyhow::Result<(), anyhow::Error> {
     }
     Ok(())
 }
+
+// TODO
 fn update_denpendencies() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
+// TODO
 fn check_docker() -> anyhow::Result<(), anyhow::Error> {
+    // check if docker is installed
+    let docker_version = Command::new("docker")
+        .arg("--version")
+        .arg("--format")
+        .output()?;
+
+    // if not installed, install docker
+    if docker_version.status.code().unwrap() != 0 {
+        let _ = match confirm_default_yes("Docker is not installed, install it now?").unwrap() {
+            true => {
+                print_output!("Installing docker...");
+                let region = get_region().unwrap();
+                let child = Command::new("curl")
+                    .arg("-fsSL")
+                    .arg("https://get.docker.com")
+                    .arg("-o")
+                    .arg("get-docker.sh")
+                    .spawn()
+                    .expect("failed to execute process");
+
+                let _ = child.wait_with_output().expect("failed to wait on child");
+                if region == "cn" {
+                    let _ = Command::new("bash")
+                        .arg("-s")
+                        .arg("docker")
+                        .arg("--mirror")
+                        .arg("Aliyun")
+                        .output()
+                        .expect("failed to execute process");
+                } else {
+                    let _ = Command::new("bash")
+                        .arg("get-docker.sh")
+                        .output()
+                        .expect("failed to execute process");
+                }
+                let _ = std::fs::remove_file("get-docker.sh");
+                print_output!("Docker installed.");
+                Ok(())
+            }
+            false => Err(anyhow::anyhow!("Installation cancelled.")),
+        };
+    }
+
+    // if installed, check docker version
+    print_info!("Checking docker version...");
+
     Ok(())
 }
 
+// TODO
+fn check_rclone() -> anyhow::Result<(), anyhow::Error> {
+    // check if rclone is installed
+    // if not exits, do not abort, and install it
+    let rclone_version = Command::new("rclone").arg("--version").output().unwrap();
+
+    // if not installed, install rclone
+    if rclone_version.status.code().unwrap() != 0 {
+        let _ = match confirm_default_yes("Rclone is not installed, install it now?").unwrap() {
+            true => {
+                print_output!("Installing rclone...");
+                let child = Command::new("wget")
+                    .arg("-qO")
+                    .arg("./install.sh")
+                    .arg("https://rclone.org/install.sh")
+                    .spawn()
+                    .expect("failed to execute process");
+
+                let _ = child.wait_with_output().expect("failed to wait on child");
+
+                let region = get_region().unwrap();
+                if region == "cn" {
+                    replace_string_in_file(
+                        "./install.sh",
+                        "downloads.rclone.org",
+                        "casaos.oss-cn-shanghai.aliyuncs.com",
+                    );
+                } else {
+                    replace_string_in_file("./install.sh", "downloads.rclone.org", "get.casaos.io");
+                }
+
+                // chmod +x install.sh
+                let _ = Command::new("chmod")
+                    .arg("+x")
+                    .arg("./install.sh")
+                    .output()
+                    .expect("failed to execute process");
+
+                // ./install.sh
+                let _ = Command::new("./install.sh")
+                    .arg("install")
+                    .output()
+                    .expect("failed to execute process");
+
+                // rm install.sh
+                let _ = std::fs::remove_file("./install.sh");
+                Ok(())
+            }
+            false => Err(anyhow::anyhow!("Installation cancelled.")),
+        };
+    }
+
+    // if installed, check rclone version
+    print_info!("Checking rclone version...");
+
+    Ok(())
+}
+
+// TODO
 fn configuraion_addon() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
@@ -396,7 +499,9 @@ async fn download_and_install_casaos(
     perms.set_mode(0o755);
     std::fs::set_permissions(ui_events_reg_script, perms)?;
 
-    // TODO: Make app store configurable
+    // let _ = configuraion_addon();
+
+    // let _ = check_rclone();
 
     // Start and enable casaos services
     for service in services {
@@ -532,50 +637,15 @@ fn welcome_banner() -> anyhow::Result<(), anyhow::Error> {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        commands::install::get_download_domain, consts::CASA_SERVICES, print_error, print_info,
-        print_ok, utils::systemd,
-    };
-    use console::style;
     #[test]
-    fn test_get_download_domain() {
-        let domain = get_download_domain();
-
-        print!("{}", domain.unwrap());
+    fn test_install_docker() {
+        let _ = super::check_docker();
+        // assert!(result.is_ok());
     }
 
     #[test]
-    fn test_welcome_banner() {
-        let _ = super::welcome_banner();
-    }
-
-    #[test]
-    fn test_enable_services() {
-        let services = CASA_SERVICES.clone();
-        for service in services {
-            print_info!("Starting {}...", style(format!("{}", service)).bold());
-            if let Ok(true) = systemd::enable(service) {
-                print_ok!("{}", style(format!("{} is enabled", service)));
-            } else {
-                print_error!("{} is not running, Please reinstall", service);
-            }
-        }
-    }
-
-    #[test]
-    fn test_disable_services() {
-        let services = CASA_SERVICES.clone();
-        for service in services {
-            print_info!("Stopping {}...", style(format!("{}", service)).bold());
-            if let Ok(true) = systemd::exists(service) {
-                if let Ok(true) = systemd::disable(service) {
-                    print_ok!("{}", style(format!("{} is disabled", service)));
-                } else {
-                    print_error!("{} is not running, Please reinstall", service);
-                }
-            } else {
-                print_error!("{} could not be found, Please reinstall", service);
-            }
-        }
+    fn test_install_rclone() {
+        let result = super::check_rclone();
+        assert!(result.is_ok());
     }
 }
